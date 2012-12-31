@@ -29,11 +29,11 @@
 #include "print.h"
 
 
-#define LED_ON		(PORTD |= (1<<6))
-#define LED_OFF		(PORTD &= ~(1<<6))
+#define LED_ON    (PORTD |= (1<<6))
+#define LED_OFF   (PORTD &= ~(1<<6))
 
-#define LED_CONFIG	(DDRD |= (1<<6))
-#define CPU_PRESCALE(n)	(CLKPR = 0x80, CLKPR = (n))
+#define LED_CONFIG      (DDRD |= (1<<6))
+#define CPU_PRESCALE(n) (CLKPR = 0x80, CLKPR = (n))
 
 /* pins for input/output */
 #define TOKB   0
@@ -120,11 +120,11 @@ static uint32_t getkb_response ()
 
 int main (void)
 {
-	CPU_PRESCALE (0);
-	LED_CONFIG;
-	LED_OFF;
+    CPU_PRESCALE (0);
+    LED_CONFIG;
+    LED_OFF;
 
-	usb_init ();
+    usb_init ();
 
     _delay_ms (1500);
 
@@ -145,7 +145,7 @@ int main (void)
 
     print ("NeXT\n");
 
-	while (1)
+    while (1)
     {
         uint32_t resp    = 0;
         uint8_t  keycode = 0;
@@ -162,6 +162,6 @@ int main (void)
 
         keycode = resp & 0x000000FF;
         keycode /= 2;
-	}
+    }
 }
 
