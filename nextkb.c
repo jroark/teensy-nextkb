@@ -19,6 +19,7 @@
   * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   * THE SOFTWARE.
   *
+  * based on work from http://m0115.web.fc2.com/ specifically http://m0115.web.fc2.com/next.jpg
   */
 
 #include <avr/io.h>
@@ -48,6 +49,12 @@
 
 #define TIMING 0.05
 
+/*---------------------------------------------------------------------------*/
+/*
+zz123456789zz
+--_____-___--
+*/
+
 static void query_kb ()
 {
     TOKB_LO;
@@ -58,6 +65,12 @@ static void query_kb ()
     _delay_ms (TIMING*3.0);
     TOKB_HI;
 }
+
+/*---------------------------------------------------------------------------*/
+/*
+zz1234567890123456789012zz
+--_----_------__________--
+*/
 
 static void reset_kb ()
 {
@@ -73,6 +86,12 @@ static void reset_kb ()
     _delay_ms (TIMING*10);
     TOKB_HI;
 }
+
+/*---------------------------------------------------------------------------*/
+/*
+zz1234567890
+--_________---
+*/
 
 static void set_kbled (uint8_t r, uint8_t l)
 {
@@ -99,6 +118,12 @@ static void set_kbled (uint8_t r, uint8_t l)
     TOKB_HI;
 }
 
+/*---------------------------------------------------------------------------*/
+/*
+zz1234567890123456789zz
+--_____-___-_________--
+*/
+
 static uint32_t getkb_response ()
 {
     uint32_t data = 0;
@@ -117,6 +142,8 @@ static uint32_t getkb_response ()
     sei ();
     return data;
 }
+
+/*---------------------------------------------------------------------------*/
 
 int main (void)
 {
