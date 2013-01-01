@@ -26,7 +26,7 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
-#include "usb_debug_only.h"
+#include "usb_keyboard_debug.h"
 #include "print.h"
 
 #include "nextkeyboard.h"
@@ -174,11 +174,15 @@ int main (void)
 
     print ("NeXT\n");
 
+    keyboard_modifier_keys = 0;
+    memset (keyboard_keys, 0, 6);
+
     while (1)
     {
         uint8_t  i       = 0;
         uint32_t resp    = 0;
         uint8_t  keycode = 0;
+        uint8_t  code    = 0;
 
         LED_OFF;
         _delay_ms (20.0);
@@ -194,29 +198,50 @@ int main (void)
         keycode /= 2;
 
         if (resp & 0x00001000)
-        {
-        }
+            keyboard_modifier_keys |= KEY_LEFT_GUI;
+        else
+            keyboard_modifier_keys &= ~KEY_LEFT_GUI;
 
         if (resp & 0x00002000)
-        {
-        }
+            keyboard_modifier_keys |= KEY_LEFT_SHIFT;
+        else
+            keyboard_modifier_keys &= ~KEY_LEFT_SHIFT;
 
         if (resp & 0x00004000)
-        {
-        }
+            keyboard_modifier_keys |= KEY_RIGHT_SHIFT;
+        else
+            keyboard_modifier_keys &= ~KEY_RIGHT_SHIFT;
+
+        if (resp & 0x00008000)
+            keyboard_modifier_keys |= KEY_LEFT_CTRL;
+        else
+            keyboard_modifier_keys &= ~KEY_LEFT_CTRL;
+
+        if (resp & 0x00010000)
+            keyboard_modifier_keys |= KEY_RIGHT_CTRL;
+        else
+            keyboard_modifier_keys &= ~KEY_RIGHT_CTRL;
+
+        if (resp & 0x00020000)
+            keyboard_modifier_keys |= KEY_LEFT_ALT;
+        else
+            keyboard_modifier_keys &= ~KEY_LEFT_ALT;
+
+        if (resp & 0x00040000)
+            keyboard_modifier_keys |= KEY_RIGHT_ALT;
+        else
+            keyboard_modifier_keys &= ~KEY_RIGHT_ALT;
 
         if (0 == keycode) continue; 
 
-        for (i = 0; i < 100; i++)
-        {
-            if (nextkbd_keydesc_us[i*3] == keycode)
-            {
-                char ascii = nextkbd_keydesc_us[i*3+1];
+        code = nextkbd_keydesc_us[keycode];
 
-                pchar (ascii);
-                pchar ('\n');
-            }
-        }
+        if ((resp & 0x00000F00) == 0x00000400)
+            keyboard_keys[0] = code;
+        else if ((resp & 0x00000F00) == 0x00000500)
+            keyboard_keys[0] = 0;
+
+        usb_keyboard_send ();
     }
 }
 
