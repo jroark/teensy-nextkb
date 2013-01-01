@@ -29,6 +29,8 @@
 #include "usb_debug_only.h"
 #include "print.h"
 
+#include "nextkeyboard.h"
+
 
 #define LED_ON    (PORTD |= (1<<6))
 #define LED_OFF   (PORTD &= ~(1<<6))
@@ -174,6 +176,7 @@ int main (void)
 
     while (1)
     {
+        uint8_t  i       = 0;
         uint32_t resp    = 0;
         uint8_t  keycode = 0;
 
@@ -183,12 +186,37 @@ int main (void)
 
         resp = getkb_response ();
 
-        if (resp == 0x200600) { continue; }
+        if (0x00200600 == resp) continue;
 
         LED_ON;
 
         keycode = resp & 0x000000FF;
         keycode /= 2;
+
+        if (resp & 0x00001000)
+        {
+        }
+
+        if (resp & 0x00002000)
+        {
+        }
+
+        if (resp & 0x00004000)
+        {
+        }
+
+        if (0 == keycode) continue; 
+
+        for (i = 0; i < 100; i++)
+        {
+            if (nextkbd_keydesc_us[i*3] == keycode)
+            {
+                char ascii = nextkbd_keydesc_us[i*3+1];
+
+                pchar (ascii);
+                pchar ('\n');
+            }
+        }
     }
 }
 
