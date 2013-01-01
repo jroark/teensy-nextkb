@@ -28,7 +28,7 @@ static const uint8_t nextkbd_keydesc_us[] = {
     KEYPAD_5,
     0, /* 25: Brightness UP */
     0, /* 26: Volume UP */
-    KEY_DELETE,
+    KEY_BACKSPACE,
     KEY_EQUAL,
     KEY_MINUS,
     KEY_8,
