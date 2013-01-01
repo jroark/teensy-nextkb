@@ -21,13 +21,18 @@
   *
   * based on work from http://m0115.web.fc2.com/ specifically http://m0115.web.fc2.com/next.jpg
   */
-
+#include <string.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+
+#ifdef DEBUG
 #include "usb_keyboard_debug.h"
 #include "print.h"
+#else
+#include "usb_keyboard.h"
+#endif
 
 #include "nextkeyboard.h"
 
@@ -172,14 +177,11 @@ int main (void)
     reset_kb ();
     _delay_ms (8.0);
 
-    print ("NeXT\n");
-
     keyboard_modifier_keys = 0;
     memset (keyboard_keys, 0, 6);
 
     while (1)
     {
-        uint8_t  i       = 0;
         uint32_t resp    = 0;
         uint8_t  keycode = 0;
         uint8_t  code    = 0;
