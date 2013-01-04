@@ -1,4 +1,8 @@
 /*
+  Modified by John Roark <john.roark@gmail.com>
+
+  removed Arduino library calls
+
   PS2Keyboard.cpp - PS2Keyboard library
   Copyright (c) 2007 Free Software Foundation.  All right reserved.
   Written by Christian Weichel <info@32leaves.net>
