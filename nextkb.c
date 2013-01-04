@@ -159,6 +159,7 @@ int main (void)
     LED_OFF;
 
     usb_init ();
+    while (!usb_configured ());
 
     _delay_ms (1500);
 
@@ -187,7 +188,7 @@ int main (void)
         uint8_t  code    = 0;
 
         LED_OFF;
-        _delay_ms (20.0);
+        _delay_ms (11.0);
         query_kb ();
 
         resp = getkb_response ();
@@ -204,15 +205,28 @@ int main (void)
         else
             keyboard_modifier_keys &= ~KEY_LEFT_GUI;
 
-        if (resp & 0x00002000)
+        if (resp & 0x00002000) 
+        {
             keyboard_modifier_keys |= KEY_LEFT_SHIFT;
+            set_kbled (0, 1);
+        }
         else
+        {
             keyboard_modifier_keys &= ~KEY_LEFT_SHIFT;
+            set_kbled (0, 0);
+        }
 
         if (resp & 0x00004000)
+        {
             keyboard_modifier_keys |= KEY_RIGHT_SHIFT;
+            set_kbled (1, 0);
+        }
         else
+        {
             keyboard_modifier_keys &= ~KEY_RIGHT_SHIFT;
+            set_kbled (0, 0);
+        }
+
 
         if (resp & 0x00008000)
             keyboard_modifier_keys |= KEY_LEFT_CTRL;
