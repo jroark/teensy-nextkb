@@ -32,6 +32,7 @@
 
 #include "nextkeyboard.h"
 
+#define ENABLE_MOUSE 0
 
 #define LED_ON    (PORTD |= (1<<6))
 #define LED_OFF   (PORTD &= ~(1<<6))
@@ -53,11 +54,30 @@
 #define TIMING 0.05
 
 /*---------------------------------------------------------------------------*/
+
+#if ENABLE_MOUSE
+static void query_mouse ()
+{
+    TOKB_LO;
+    _delay_ms (TIMING);
+    TOKB_HI;
+    _delay_ms (TIMING);
+    TOKB_LO;
+    _delay_ms (TIMING*3.0);
+    TOKB_HI;
+    _delay_ms (TIMING);
+    TOKB_LO;
+    _delay_ms (TIMING*3.0);
+    TOKB_HI;
+}
+#endif
+
+/*---------------------------------------------------------------------------*/
+
 /*
 zz123456789zz
 --_____-___--
 */
-
 static void query_kb ()
 {
     TOKB_LO;
@@ -68,6 +88,7 @@ static void query_kb ()
     _delay_ms (TIMING*3.0);
     TOKB_HI;
 }
+
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -127,7 +148,7 @@ zz1234567890123456789zz
 --_____-___-_________--
 */
 
-static uint32_t getkb_response ()
+static uint32_t get_response ()
 {
     uint32_t data = 0;
     uint8_t  i    = 0;
@@ -150,6 +171,7 @@ static uint32_t getkb_response ()
 
 int main (void)
 {
+    uint8_t  sel     = 0;
     CPU_PRESCALE (0);
     LED_CONFIG;
     LED_OFF;
@@ -185,9 +207,18 @@ int main (void)
 
         LED_OFF;
         _delay_ms (11.0);
-        query_kb ();
 
-        resp = getkb_response ();
+#if ENABLE_MOUSE
+        if (sel) {
+#endif
+            query_kb ();
+#if ENABLE_MOUSE
+        } else {
+            query_mouse ();
+        }
+        sel = !sel;
+#endif
+        resp = get_response ();
 
         if (0x00200600 == resp) continue;
 
