@@ -61,30 +61,49 @@
 #define LED_CONFIG      (DDRD |= (1<<6))
 #define CPU_PRESCALE(n) (CLKPR = 0x80, CLKPR = (n))
 
-/* pins for CLK/DATA */
-#define CLK   0 /*PD0 == 5*/
-#define DATA  3 /*PD3 == 8*/
+/* pins for PS2 KB CLK/DATA */
+#define PS2KBCLK   0 /*PD0 == 5*/
+#define PS2KBDATA  3 /*PD3 == 8*/
 
-#define CLK_HI          (PORTD |= (1<<CLK))
-#define CLK_LO          (PORTD &= ~(1<<CLK))
-#define DATA_HI         (PORTD |= (1<<DATA))
-#define DATA_LO         (PORTD &= ~(1<<DATA))
+#define PS2KBCLK_HI          (PORTD |= (1<<PS2KBCLK))
+#define PS2KBCLK_LO          (PORTD &= ~(1<<PS2KBCLK))
+#define PS2KBDATA_HI         (PORTD |= (1<<PS2KBDATA))
+#define PS2KBDATA_LO         (PORTD &= ~(1<<PS2KBDATA))
 
-#define DATA_ISHI       ((PIND & (1<<DATA)) ? 1 : 0)
+#define PS2KBDATA_ISHI       ((PIND & (1<<PS2KBDATA)) ? 1 : 0)
 
-#define CLK_CONFIG_OUT  (DDRD |= (1<<CLK))
-#define CLK_CONFIG_IN   (DDRD &= ~(1<<CLK))
+#define PS2KBCLK_CONFIG_OUT  (DDRD |= (1<<PS2KBCLK))
+#define PS2KBCLK_CONFIG_IN   (DDRD &= ~(1<<PS2KBCLK))
 
-#define DATA_CONFIG_OUT (DDRD |= (1<<DATA))
-#define DATA_CONFIG_IN  (DDRD &= ~(1<<DATA))
+#define PS2KBDATA_CONFIG_OUT (DDRD |= (1<<PS2KBDATA))
+#define PS2KBDATA_CONFIG_IN  (DDRD &= ~(1<<PS2KBDATA))
+
+/* pins for PS2 mouse CLK/DATA */
+/* TODO */
+
+/* pins for NeXT IN/OUT from soundbox */
+#define FROM_NEXT  0 /*PB0 = 0 */
+#define TO_NEXT    1 /*PB1 = 1 */
+
+#define FROM_NEXT_HI         (PORTB |= (1<<FROM_NEXT))
+#define FROM_NEXT_LO         (PORTB &= ~(1<<FROM_NEXT))
+#define TO_NEXT_HI           (PORTB |= (1<<TO_NEXT))
+#define TO_NEXT_LO           (PORTB &= ~(1<<TO_NEXT))
+
+#define TO_NEXT_ISHI         ((PINB & (1<<TO_NEXT)) ? 1 : 0)
+#define FROM_NEXT_ISHI       ((PINB & (1<<FROM_NEXT)) ? 1 : 0)
+
+#define FROM_NEXT_CONFIG_OUT (DDRB |= (1<<FROM_NEXT))
+#define FROM_NEXT_CONFIG_IN  (DDRB &= ~(1<<FROM_NEXT))
+
+#define TO_NEXT_CONFIG_OUT   (DDRB |= (1<<TO_NEXT))
+#define TO_NEXT_CONFIG_IN    (DDRB &= ~(1<<TO_NEXT))
+
+#define TIMING 0.05
 
 #define BUFFER_SIZE 45
 static volatile uint8_t buffer[BUFFER_SIZE];
 static volatile uint8_t head, tail;
-static uint8_t DataPin;
-static uint8_t CharBuffer=0;
-static uint8_t UTF8next=0;
-static const PS2Keymap_t *keymap=NULL;
 
 volatile unsigned long timer0_millis_count = 0; 
 
@@ -110,7 +129,7 @@ static inline uint32_t millis(void)
     return out; 
 }
 
-// The ISR for the external interrupt
+// The ISR for the external PS2 KB interrupt
 ISR(INT0_vect)
 {
 	static uint8_t bitcount=0;
@@ -119,7 +138,7 @@ ISR(INT0_vect)
 	uint32_t now_ms;
 	uint8_t n, val;
 
-	val = DATA_ISHI;
+	val = PS2KBDATA_ISHI;
 	now_ms = millis();
 
 	if (now_ms - prev_ms > 250) {
@@ -138,252 +157,51 @@ ISR(INT0_vect)
 		if (i != tail) {
 			buffer[i] = incoming;
 			head = i;
+            LED_ON;
 		}
 		bitcount = 0;
 		incoming = 0;
 	}
 }
 
-static inline uint8_t get_scan_code(void)
+static inline uint8_t get_scan_code (void)
 {
 	uint8_t c, i;
 
 	i = tail;
-	if (i == head) return 0;
+	if (i == head)
+        return 0;
 	i++;
-	if (i >= BUFFER_SIZE) i = 0;
+	if (i >= BUFFER_SIZE) 
+        i = 0;
 	c = buffer[i];
 	tail = i;
+
 	return c;
 }
 
-// http://www.quadibloc.com/comp/scan.htm
-// http://www.computer-engineering.org/ps2keyboard/scancodes2.html
-
-// These arrays provide a simple key map, to turn scan codes into ISO8859
-// output.  If a non-US keyboard is used, these may need to be modified
-// for the desired output.
-//
-
-const PROGMEM PS2Keymap_t PS2Keymap_US = {
-  // without shift
-	{0, PS2_F9, 0, PS2_F5, PS2_F3, PS2_F1, PS2_F2, PS2_F12,
-	0, PS2_F10, PS2_F8, PS2_F6, PS2_F4, PS2_TAB, '`', 0,
-	0, 0 /*Lalt*/, 0 /*Lshift*/, 0, 0 /*Lctrl*/, 'q', '1', 0,
-	0, 0, 'z', 's', 'a', 'w', '2', 0,
-	0, 'c', 'x', 'd', 'e', '4', '3', 0,
-	0, ' ', 'v', 'f', 't', 'r', '5', 0,
-	0, 'n', 'b', 'h', 'g', 'y', '6', 0,
-	0, 0, 'm', 'j', 'u', '7', '8', 0,
-	0, ',', 'k', 'i', 'o', '0', '9', 0,
-	0, '.', '/', 'l', ';', 'p', '-', 0,
-	0, 0, '\'', 0, '[', '=', 0, 0,
-	0 /*CapsLock*/, 0 /*Rshift*/, PS2_ENTER /*Enter*/, ']', 0, '\\', 0, 0,
-	0, 0, 0, 0, 0, 0, PS2_BACKSPACE, 0,
-	0, '1', 0, '4', '7', 0, 0, 0,
-	'0', '.', '2', '5', '6', '8', PS2_ESC, 0 /*NumLock*/,
-	PS2_F11, '+', '3', '-', '*', '9', PS2_SCROLL, 0,
-	0, 0, 0, PS2_F7 },
-  // with shift
-	{0, PS2_F9, 0, PS2_F5, PS2_F3, PS2_F1, PS2_F2, PS2_F12,
-	0, PS2_F10, PS2_F8, PS2_F6, PS2_F4, PS2_TAB, '~', 0,
-	0, 0 /*Lalt*/, 0 /*Lshift*/, 0, 0 /*Lctrl*/, 'Q', '!', 0,
-	0, 0, 'Z', 'S', 'A', 'W', '@', 0,
-	0, 'C', 'X', 'D', 'E', '$', '#', 0,
-	0, ' ', 'V', 'F', 'T', 'R', '%', 0,
-	0, 'N', 'B', 'H', 'G', 'Y', '^', 0,
-	0, 0, 'M', 'J', 'U', '&', '*', 0,
-	0, '<', 'K', 'I', 'O', ')', '(', 0,
-	0, '>', '?', 'L', ':', 'P', '_', 0,
-	0, 0, '"', 0, '{', '+', 0, 0,
-	0 /*CapsLock*/, 0 /*Rshift*/, PS2_ENTER /*Enter*/, '}', 0, '|', 0, 0,
-	0, 0, 0, 0, 0, 0, PS2_BACKSPACE, 0,
-	0, '1', 0, '4', '7', 0, 0, 0,
-	'0', '.', '2', '5', '6', '8', PS2_ESC, 0 /*NumLock*/,
-	PS2_F11, '+', '3', '-', '*', '9', PS2_SCROLL, 0,
-	0, 0, 0, PS2_F7 },
-	0
-};
-
-
-const PROGMEM PS2Keymap_t PS2Keymap_German = {
-  // without shift
-	{0, PS2_F9, 0, PS2_F5, PS2_F3, PS2_F1, PS2_F2, PS2_F12,
-	0, PS2_F10, PS2_F8, PS2_F6, PS2_F4, PS2_TAB, '^', 0,
-	0, 0 /*Lalt*/, 0 /*Lshift*/, 0, 0 /*Lctrl*/, 'q', '1', 0,
-	0, 0, 'y', 's', 'a', 'w', '2', 0,
-	0, 'c', 'x', 'd', 'e', '4', '3', 0,
-	0, ' ', 'v', 'f', 't', 'r', '5', 0,
-	0, 'n', 'b', 'h', 'g', 'z', '6', 0,
-	0, 0, 'm', 'j', 'u', '7', '8', 0,
-	0, ',', 'k', 'i', 'o', '0', '9', 0,
-	0, '.', '-', 'l', PS2_o_DIAERESIS, 'p', PS2_SHARP_S, 0,
-	0, 0, PS2_a_DIAERESIS, 0, PS2_u_DIAERESIS, '\'', 0, 0,
-	0 /*CapsLock*/, 0 /*Rshift*/, PS2_ENTER /*Enter*/, '+', 0, '#', 0, 0,
-	0, '<', 0, 0, 0, 0, PS2_BACKSPACE, 0,
-	0, '1', 0, '4', '7', 0, 0, 0,
-	'0', '.', '2', '5', '6', '8', PS2_ESC, 0 /*NumLock*/,
-	PS2_F11, '+', '3', '-', '*', '9', PS2_SCROLL, 0,
-	0, 0, 0, PS2_F7 },
-  // with shift
-	{0, PS2_F9, 0, PS2_F5, PS2_F3, PS2_F1, PS2_F2, PS2_F12,
-	0, PS2_F10, PS2_F8, PS2_F6, PS2_F4, PS2_TAB, PS2_DEGREE_SIGN, 0,
-	0, 0 /*Lalt*/, 0 /*Lshift*/, 0, 0 /*Lctrl*/, 'Q', '!', 0,
-	0, 0, 'Y', 'S', 'A', 'W', '"', 0,
-	0, 'C', 'X', 'D', 'E', '$', PS2_SECTION_SIGN, 0,
-	0, ' ', 'V', 'F', 'T', 'R', '%', 0,
-	0, 'N', 'B', 'H', 'G', 'Z', '&', 0,
-	0, 0, 'M', 'J', 'U', '/', '(', 0,
-	0, ';', 'K', 'I', 'O', '=', ')', 0,
-	0, ':', '_', 'L', PS2_O_DIAERESIS, 'P', '?', 0,
-	0, 0, PS2_A_DIAERESIS, 0, PS2_U_DIAERESIS, '`', 0, 0,
-	0 /*CapsLock*/, 0 /*Rshift*/, PS2_ENTER /*Enter*/, '*', 0, '\'', 0, 0,
-	0, '>', 0, 0, 0, 0, PS2_BACKSPACE, 0,
-	0, '1', 0, '4', '7', 0, 0, 0,
-	'0', '.', '2', '5', '6', '8', PS2_ESC, 0 /*NumLock*/,
-	PS2_F11, '+', '3', '-', '*', '9', PS2_SCROLL, 0,
-	0, 0, 0, PS2_F7 },
-	1,
-  // with altgr
-	{0, PS2_F9, 0, PS2_F5, PS2_F3, PS2_F1, PS2_F2, PS2_F12,
-	0, PS2_F10, PS2_F8, PS2_F6, PS2_F4, PS2_TAB, 0, 0,
-	0, 0 /*Lalt*/, 0 /*Lshift*/, 0, 0 /*Lctrl*/, '@', 0, 0,
-	0, 0, 0, 0, 0, 0, PS2_SUPERSCRIPT_TWO, 0,
-	0, 0, 0, 0, PS2_CURRENCY_SIGN, 0, PS2_SUPERSCRIPT_THREE, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, PS2_MICRO_SIGN, 0, 0, '{', '[', 0,
-	0, 0, 0, 0, 0, '}', ']', 0,
-	0, 0, 0, 0, 0, 0, '\\', 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0 /*CapsLock*/, 0 /*Rshift*/, PS2_ENTER /*Enter*/, '~', 0, '#', 0, 0,
-	0, '|', 0, 0, 0, 0, PS2_BACKSPACE, 0,
-	0, '1', 0, '4', '7', 0, 0, 0,
-	'0', '.', '2', '5', '6', '8', PS2_ESC, 0 /*NumLock*/,
-	PS2_F11, '+', '3', '-', '*', '9', PS2_SCROLL, 0,
-	0, 0, 0, PS2_F7 }
-};
-
-
-
-#define BREAK     0x01
-#define MODIFIER  0x02
-#define SHIFT_L   0x04
-#define SHIFT_R   0x08
-#define ALTGR     0x10
-
-static char get_iso8859_code(void)
+static void send_response (uint32_t resp)
 {
-	static uint8_t state=0;
-	uint8_t s;
-	char c;
+    uint8_t i = 0;
 
-	while (1) {
-		s = get_scan_code();
-		if (!s) return 0;
-		if (s == 0xF0) {
-			state |= BREAK;
-		} else if (s == 0xE0) {
-			state |= MODIFIER;
-		} else {
-			if (state & BREAK) {
-				if (s == 0x12) {
-					state &= ~SHIFT_L;
-				} else if (s == 0x59) {
-					state &= ~SHIFT_R;
-				} else if (s == 0x11 && (state & MODIFIER)) {
-					state &= ~ALTGR;
-				}
-				// CTRL, ALT & WIN keys could be added
-				// but is that really worth the overhead?
-				state &= ~(BREAK | MODIFIER);
-				continue;
-			}
-			if (s == 0x12) {
-				state |= SHIFT_L;
-				continue;
-			} else if (s == 0x59) {
-				state |= SHIFT_R;
-				continue;
-			} else if (s == 0x11 && (state & MODIFIER)) {
-				state |= ALTGR;
-			}
-			c = 0;
-			if (state & MODIFIER) {
-				switch (s) {
-				  case 0x70: c = PS2_INSERT;      break;
-				  case 0x6C: c = PS2_HOME;        break;
-				  case 0x7D: c = PS2_PAGEUP;      break;
-				  case 0x71: c = PS2_DELETE;      break;
-				  case 0x69: c = PS2_END;         break;
-				  case 0x7A: c = PS2_PAGEDOWN;    break;
-				  case 0x75: c = PS2_UPARROW;     break;
-				  case 0x6B: c = PS2_LEFTARROW;   break;
-				  case 0x72: c = PS2_DOWNARROW;   break;
-				  case 0x74: c = PS2_RIGHTARROW;  break;
-				  case 0x4A: c = '/';             break;
-				  case 0x5A: c = PS2_ENTER;       break;
-				  default: break;
-				}
-			} else if ((state & ALTGR) && keymap->uses_altgr) {
-				if (s < PS2_KEYMAP_SIZE)
-					c = pgm_read_byte(keymap->altgr + s);
-			} else if (state & (SHIFT_L | SHIFT_R)) {
-				if (s < PS2_KEYMAP_SIZE)
-					c = pgm_read_byte(keymap->shift + s);
-			} else {
-				if (s < PS2_KEYMAP_SIZE)
-					c = pgm_read_byte(keymap->noshift + s);
-			}
-			state &= ~(BREAK | MODIFIER);
-			if (c) return c;
-		}
-	}
-}
-
-uint8_t available() {
-	if (CharBuffer || UTF8next) return 1;
-	CharBuffer = get_iso8859_code();
-	if (CharBuffer) return 1;
-	return 0;
-}
-
-int read() {
-	uint8_t result;
-
-	result = UTF8next;
-	if (result) {
-		UTF8next = 0;
-	} else {
-		result = CharBuffer;
-		if (result) {
-			CharBuffer = 0;
-		} else {
-			result = get_iso8859_code();
-		}
-		if (result >= 128) {
-			UTF8next = (result & 0x3F) | 0x80;
-			result = ((result >> 6) & 0x1F) | 0xC0;
-		}
-	}
-	if (!result) return -1;
-	return result;
-}
-
-void begin(const PS2Keymap_t *map) {
-    keymap = map;
-
-    CLK_CONFIG_IN;
-    CLK_HI;
-    DATA_CONFIG_IN;
-    DATA_HI;
-  
-    head = 0;
-    tail = 0;
+    //cli ();
+    for (i = 22; i > 0; i--)
+    {
+        if (resp & (1<<i))
+            TO_NEXT_HI;
+        else
+            TO_NEXT_LO;
+        _delay_ms (TIMING);
+    }
+    TO_NEXT_HI;
+    //sei ();
 }
 
 int main (void)
 {
+    uint32_t n = 0;
+    uint32_t cmds[256]={0}; /* circular buffer of cmds from soundbox */
+
     CPU_PRESCALE (0);
     LED_CONFIG;
     LED_OFF;
@@ -394,24 +212,118 @@ int main (void)
 	TIMSK0 |= (1<<TOIE0);
     TCNT0 = 0;
 
+    n = 0;
+    memset (cmds, 0, 256);
+
 	// initialize USB
 	usb_init();
     while (!usb_configured ());
 
     _delay_ms (1500);
 
-    begin (&PS2Keymap_US);
+    FROM_NEXT_CONFIG_IN;
+    FROM_NEXT_HI;
+    TO_NEXT_CONFIG_OUT;
+    TO_NEXT_HI;
 
-    EICRA = (EICRA & 0xFC) | (0x03&0x02);
-    EIMSK |= (1 << 0);
+    PS2KBCLK_CONFIG_IN;
+    PS2KBCLK_HI;
+    PS2KBDATA_CONFIG_IN;
+    PS2KBDATA_HI;
+  
+    head = 0;
+    tail = 0;
+
+    // falling edge for PS2 int
+    EICRA = (EICRA & 0xFC) | (0x02&0x03);
+    EIMSK |= (1 << PS2KBCLK);
+    sei ();
 
     while (1)
     {
-        if (available ()) {
-            pchar (read ());
+        uint32_t val, preval=0;
+        uint8_t i;
+
+        LED_OFF;
+        while (FROM_NEXT_ISHI);
+
+        val = 0;
+        //cli (); 
+        _delay_ms (TIMING/2);
+        for (i = 0; i < 6; i++) {
+            if (FROM_NEXT_ISHI)
+                val |= ((uint32_t)1 << i); 
+            _delay_ms (TIMING);
+        }   
+
+        switch (val) {
+            case 0x00000020: /* KB QUERY */
+            case 0x00000022: /* MOUSE QUERY */
+                for (i = 6; i < 9; i++) {
+                    if (FROM_NEXT_ISHI)
+                        val |= ((uint32_t)1 << i); 
+                    _delay_ms (TIMING);
+                }   
+                break;
+            case 0x0000001E: /* KB RESET */
+            case 0x00000000: /* LED CMD */
+            default:
+                for (i = 6; i < 22; i++) {
+                    if (FROM_NEXT_ISHI)
+                        val |= ((uint32_t)1 << i);
+                    _delay_ms (TIMING);
+                }
+                break;
         }
+        //sei ();
+
+        if (n >= 256)
+            n = 0;
+
+        if (val && (preval != val)) {
+            cmds[n++] = val;
+            preval = val;
+        } else
+            val = 0;
+
+        if (val == 0x00000020) {
+            uint32_t resp = 0x00200600;
+            uint8_t ps2_scancode = get_scan_code ();
+
+            /* send kb response */
+            if (ps2_scancode && (ps2_scancode < 0x83)) {
+                resp = ps2_next_scancodes[ps2_scancode];
+                resp |= 0x00000400;
+                LED_ON;
+            } else if (ps2_scancode == 0xE0) {
+                /* multi-byte scancode */
+                uint8_t code = get_scan_code ();
+
+                if (code == 0xF0) {
+                    code = get_scan_code ();
+                    resp = 0x00000500;
+                } else
+                    resp = 0x00000400;
+                resp |= ps2_next_scancodes[code];
+                LED_ON;
+            } else if (ps2_scancode == 0xF0) {
+                /* key up scancdoe */
+                uint8_t code = get_scan_code ();
+
+                resp = ps2_next_scancodes[code];
+                resp |= 0x00000500;
+                LED_ON;
+            }
+            send_response (resp);
+        } else if (val == 0x00000022) {
+            /* TODO: if PS2 mouse available send data */
+            uint32_t resp = 0x00200600;
+            send_response (resp);
+        }
+        _delay_ms (1.0);
     }
 
     return 0;
 }
+
 
