@@ -132,52 +132,52 @@ static inline uint32_t millis(void)
 // The ISR for the external PS2 KB interrupt
 ISR(INT0_vect)
 {
-	static uint8_t bitcount=0;
-	static uint8_t incoming=0;
-	static uint32_t prev_ms=0;
-	uint32_t now_ms;
-	uint8_t n, val;
+    static uint8_t bitcount=0;
+    static uint8_t incoming=0;
+    static uint32_t prev_ms=0;
+    uint32_t now_ms;
+    uint8_t n, val;
 
-	val = PS2KBDATA_ISHI;
-	now_ms = millis();
+    val = PS2KBDATA_ISHI;
+    now_ms = millis();
 
-	if (now_ms - prev_ms > 250) {
-		bitcount = 0;
-		incoming = 0;
-	}
-	prev_ms = now_ms;
-	n = bitcount - 1;
-	if (n <= 7) {
-		incoming |= (val << n);
-	}
-	bitcount++;
-	if (bitcount == 11) {
-		uint8_t i = head + 1;
-		if (i >= BUFFER_SIZE) i = 0;
-		if (i != tail) {
-			buffer[i] = incoming;
-			head = i;
+    if (now_ms - prev_ms > 250) {
+        bitcount = 0;
+        incoming = 0;
+    }
+    prev_ms = now_ms;
+    n = bitcount - 1;
+    if (n <= 7) {
+        incoming |= (val << n);
+    }
+    bitcount++;
+    if (bitcount == 11) {
+        uint8_t i = head + 1;
+        if (i >= BUFFER_SIZE) i = 0;
+        if (i != tail) {
+            buffer[i] = incoming;
+            head = i;
             LED_ON;
-		}
-		bitcount = 0;
-		incoming = 0;
-	}
+        }
+        bitcount = 0;
+        incoming = 0;
+    }
 }
 
 static inline uint8_t get_scan_code (void)
 {
-	uint8_t c, i;
+    uint8_t c, i;
 
-	i = tail;
-	if (i == head)
+    i = tail;
+    if (i == head)
         return 0;
-	i++;
-	if (i >= BUFFER_SIZE) 
+    i++;
+    if (i >= BUFFER_SIZE) 
         i = 0;
-	c = buffer[i];
-	tail = i;
+    c = buffer[i];
+    tail = i;
 
-	return c;
+    return c;
 }
 
 static void send_response (uint32_t resp)
@@ -206,17 +206,17 @@ int main (void)
     LED_CONFIG;
     LED_OFF;
 
-	// timer 0, fast pwm mode
-	TCCR0A = (1<<WGM01) | (1<<WGM00);
-	TCCR0B = (1<<CS01) | (1<<CS00);		// div 64 prescaler
-	TIMSK0 |= (1<<TOIE0);
+    // timer 0, fast pwm mode
+    TCCR0A = (1<<WGM01) | (1<<WGM00);
+    TCCR0B = (1<<CS01) | (1<<CS00);        // div 64 prescaler
+    TIMSK0 |= (1<<TOIE0);
     TCNT0 = 0;
 
     n = 0;
     memset (cmds, 0, 256);
 
-	// initialize USB
-	usb_init();
+    // initialize USB
+    usb_init();
     while (!usb_configured ());
 
     _delay_ms (1500);
