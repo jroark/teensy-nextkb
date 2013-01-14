@@ -297,20 +297,20 @@ int main (void)
                 LED_ON;
             } else if (ps2_scancode == 0xE0) {
                 /* multi-byte scancode */
-                uint8_t code = get_scan_code ();
+                ps2_scancode = get_scan_code ();
 
-                if (code == 0xF0) {
-                    code = get_scan_code ();
+                if (ps2_scancode == 0xF0) {
+                    ps2_scancode = get_scan_code ();
                     resp = 0x00000500;
                 } else
                     resp = 0x00000400;
-                resp |= ps2_next_scancodes[code];
+                resp |= ps2_next_scancodes[ps2_scancode];
                 LED_ON;
             } else if (ps2_scancode == 0xF0) {
                 /* key up scancdoe */
-                uint8_t code = get_scan_code ();
+                ps2_scancode = get_scan_code ();
 
-                resp = ps2_next_scancodes[code];
+                resp = ps2_next_scancodes[ps2_scancode];
                 resp |= 0x00000500;
                 LED_ON;
             }

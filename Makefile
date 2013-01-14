@@ -41,14 +41,15 @@
 
 
 # Target file name (without extension).
-TARGET = ps2
+TARGET = nextkb
+#ps2
 
 
 # List C source files here. (C dependencies are automatically generated.)
 SRC =	$(TARGET).c \
-	usb_keyboard_debug.c \
-	print.c
-#   usb_keyboard.c
+        usb_keyboard.c
+#	usb_keyboard_debug.c \
+#	print.c
 
 # MCU name, you MUST set this to match the board you are using
 # type "make clean" after changing this, so all files will be rebuilt
