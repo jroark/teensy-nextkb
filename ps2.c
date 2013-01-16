@@ -52,9 +52,6 @@
 #include <string.h>
 #include <util/delay.h>
 
-#include "usb_keyboard_debug.h"
-#include "print.h"
-
 #define LED_ON    (PORTD |= (1<<6))
 #define LED_OFF   (PORTD &= ~(1<<6))
 
@@ -157,7 +154,6 @@ ISR(INT0_vect)
         if (i != tail) {
             buffer[i] = incoming;
             head = i;
-            LED_ON;
         }
         bitcount = 0;
         incoming = 0;
@@ -180,14 +176,31 @@ static inline uint8_t get_scan_code (void)
     return c;
 }
 
-static void send_response (uint32_t resp)
+static inline void send_response (uint8_t resp_lo, uint8_t resp_hi, uint8_t resp_hihi)
 {
     uint8_t i = 0;
 
+
     //cli ();
-    for (i = 22; i > 0; i--)
+    for (i = 0; i < 8; i++)
     {
-        if (resp & (1<<i))
+        if (resp_lo & ((uint32_t)1 << i))
+            TO_NEXT_HI;
+        else
+            TO_NEXT_LO;
+        _delay_ms (TIMING);
+    }
+    for (i = 0; i < 8; i++)
+    {
+        if (resp_hi & ((uint32_t)1 << i))
+            TO_NEXT_HI;
+        else
+            TO_NEXT_LO;
+        _delay_ms (TIMING);
+    }
+    for (i = 0; i < 6; i++)
+    {
+        if (resp_hihi & ((uint32_t)1 << i))
             TO_NEXT_HI;
         else
             TO_NEXT_LO;
@@ -199,9 +212,6 @@ static void send_response (uint32_t resp)
 
 int main (void)
 {
-    uint32_t n = 0;
-    uint32_t cmds[256]={0}; /* circular buffer of cmds from soundbox */
-
     CPU_PRESCALE (0);
     LED_CONFIG;
     LED_OFF;
@@ -211,15 +221,6 @@ int main (void)
     TCCR0B = (1<<CS01) | (1<<CS00);        // div 64 prescaler
     TIMSK0 |= (1<<TOIE0);
     TCNT0 = 0;
-
-    n = 0;
-    memset (cmds, 0, 256);
-
-    // initialize USB
-    usb_init();
-    while (!usb_configured ());
-
-    _delay_ms (1500);
 
     FROM_NEXT_CONFIG_IN;
     FROM_NEXT_HI;
@@ -277,23 +278,14 @@ int main (void)
         }
         //sei ();
 
-        if (n >= 256)
-            n = 0;
-
-        if (val && (preval != val)) {
-            cmds[n++] = val;
-            preval = val;
-        } else
-            val = 0;
-
         if (val == 0x00000020) {
-            uint32_t resp = 0x00200600;
+            uint32_t resp = 0x00300600;
             uint8_t ps2_scancode = get_scan_code ();
 
             /* send kb response */
             if (ps2_scancode && (ps2_scancode < 0x83)) {
-                resp = ps2_next_scancodes[ps2_scancode];
-                resp |= 0x00000400;
+                resp = 2*ps2_next_scancodes[ps2_scancode];
+                resp |= 0x00280400;
                 LED_ON;
             } else if (ps2_scancode == 0xE0) {
                 /* multi-byte scancode */
@@ -301,26 +293,28 @@ int main (void)
 
                 if (ps2_scancode == 0xF0) {
                     ps2_scancode = get_scan_code ();
-                    resp = 0x00000500;
+                    resp = 0x00280500;
                 } else
-                    resp = 0x00000400;
-                resp |= ps2_next_scancodes[ps2_scancode];
+                    resp = 0x00280400;
+                resp |= 2*ps2_next_scancodes[ps2_scancode];
                 LED_ON;
             } else if (ps2_scancode == 0xF0) {
                 /* key up scancdoe */
                 ps2_scancode = get_scan_code ();
 
-                resp = ps2_next_scancodes[ps2_scancode];
-                resp |= 0x00000500;
+                resp = 2*ps2_next_scancodes[ps2_scancode];
+                resp |= 0x00280500;
                 LED_ON;
             }
-            send_response (resp);
+            _delay_ms (TIMING*4.5);
+            send_response (resp & 0x000000FF, (resp & 0x0000FF00)>>8, (resp & 0x00FF0000)>>16);
         } else if (val == 0x00000022) {
             /* TODO: if PS2 mouse available send data */
-            uint32_t resp = 0x00200600;
-            send_response (resp);
+            uint32_t resp = 0x00300600;
+            _delay_ms (TIMING*4.5);
+            send_response (resp & 0x000000FF, (resp & 0x0000FF00)>>8, (resp & 0x00FF0000)>>16);
         }
-        _delay_ms (1.0);
+        _delay_ms (TIMING*4);
     }
 
     return 0;
