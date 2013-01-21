@@ -174,7 +174,7 @@ ISR (INT0_vect)
     static inline uint8_t
 get_scan_code (void)
 {
-    uint8_t c, i;
+    uint8_t c = 0, i;
 
     i = tail;
     if (i == head)
@@ -389,10 +389,19 @@ int main (void)
                 /* key up scancdoe */
                 ps2_scancode = get_scan_code ();
 
+                if (ps2_scancode == 0)
+                {
+                    tail--; /* put the code back */
+                    resp = 0x00300600;
+                    goto send_response;
+                }
+
                 resp = 2*ps2_next_scancodes[ps2_scancode];
                 resp |= 0x00280500;
                 LED_ON;
             }
+
+send_response:
             _delay_us (TIMING*4.5);
             send_response (resp & 0x000000FF, (resp & 0x0000FF00)>>8, (resp & 0x00FF0000)>>16);
         }
