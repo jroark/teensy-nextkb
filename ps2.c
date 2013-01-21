@@ -96,7 +96,7 @@
 #define TO_NEXT_CONFIG_OUT   (DDRB |= (1<<TO_NEXT))
 #define TO_NEXT_CONFIG_IN    (DDRB &= ~(1<<TO_NEXT))
 
-#define TIMING 0.05
+#define TIMING 50
 
 #define BUFFER_SIZE 45
 static volatile uint8_t buffer[BUFFER_SIZE];
@@ -104,16 +104,20 @@ static volatile uint8_t head, tail;
 
 volatile unsigned long timer0_millis_count = 0; 
 
-ISR(TIMER0_OVF_vect)
+/*----------------------------------------------------------------------------*/
+
+ISR (TIMER0_OVF_vect)
 {
     timer0_millis_count++;
 }
 
-static inline uint32_t millis(void) __attribute__((always_inline, unused));
-static inline uint32_t millis(void)
+/*----------------------------------------------------------------------------*/
+
+static inline uint32_t millis (void) __attribute__((always_inline, unused));
+static inline uint32_t millis (void)
 {
     uint32_t out; 
-    asm volatile(
+    asm volatile (
         "in __tmp_reg__, __SREG__"      "\n\t"
         "cli"                   "\n\t"
         "lds    %A0, timer0_millis_count"   "\n\t"
@@ -126,32 +130,37 @@ static inline uint32_t millis(void)
     return out; 
 }
 
+/*----------------------------------------------------------------------------*/
+
 // The ISR for the external PS2 KB interrupt
-ISR(INT0_vect)
+ISR (INT0_vect)
 {
-    static uint8_t bitcount=0;
-    static uint8_t incoming=0;
-    static uint32_t prev_ms=0;
-    uint32_t now_ms;
-    uint8_t n, val;
+    static uint8_t  bitcount = 0;
+    static uint8_t  incoming = 0;
+    static uint32_t prev_ms  = 0;
+    uint32_t        now_ms;
+    uint8_t         n, val;
 
     val = PS2KBDATA_ISHI;
     now_ms = millis();
 
-    if (now_ms - prev_ms > 250) {
+    if (now_ms - prev_ms > 250)
+    {
         bitcount = 0;
         incoming = 0;
     }
     prev_ms = now_ms;
     n = bitcount - 1;
-    if (n <= 7) {
+    if (n <= 7)
         incoming |= (val << n);
-    }
+
     bitcount++;
-    if (bitcount == 11) {
+    if (bitcount == 11) 
+    {
         uint8_t i = head + 1;
         if (i >= BUFFER_SIZE) i = 0;
-        if (i != tail) {
+        if (i != tail)
+        {
             buffer[i] = incoming;
             head = i;
         }
@@ -160,7 +169,10 @@ ISR(INT0_vect)
     }
 }
 
-static inline uint8_t get_scan_code (void)
+/*----------------------------------------------------------------------------*/
+
+    static inline uint8_t
+get_scan_code (void)
 {
     uint8_t c, i;
 
@@ -176,7 +188,10 @@ static inline uint8_t get_scan_code (void)
     return c;
 }
 
-static inline uint8_t get_special_scancode (uint8_t ps2_scancode)
+/*----------------------------------------------------------------------------*/
+
+    static inline uint8_t
+get_special_scancode (uint8_t ps2_scancode)
 {
     switch (ps2_scancode)
     {
@@ -233,39 +248,41 @@ static inline uint8_t get_special_scancode (uint8_t ps2_scancode)
     return 0x00;
 }
 
-static inline void send_response (uint8_t resp_lo, uint8_t resp_hi, uint8_t resp_hihi)
+/*----------------------------------------------------------------------------*/
+
+    static inline void
+send_response (uint8_t resp_lo, uint8_t resp_mid, uint8_t resp_hi)
 {
     uint8_t i = 0;
 
-
-    //cli ();
     for (i = 0; i < 8; i++)
     {
         if (resp_lo & ((uint32_t)1 << i))
             TO_NEXT_HI;
         else
             TO_NEXT_LO;
-        _delay_ms (TIMING);
+        _delay_us (TIMING);
     }
     for (i = 0; i < 8; i++)
+    {
+        if (resp_mid & ((uint32_t)1 << i))
+            TO_NEXT_HI;
+        else
+            TO_NEXT_LO;
+        _delay_us (TIMING);
+    }
+    for (i = 0; i < 6; i++)
     {
         if (resp_hi & ((uint32_t)1 << i))
             TO_NEXT_HI;
         else
             TO_NEXT_LO;
-        _delay_ms (TIMING);
-    }
-    for (i = 0; i < 6; i++)
-    {
-        if (resp_hihi & ((uint32_t)1 << i))
-            TO_NEXT_HI;
-        else
-            TO_NEXT_LO;
-        _delay_ms (TIMING);
+        _delay_us (TIMING);
     }
     TO_NEXT_HI;
-    //sei ();
 }
+
+/*----------------------------------------------------------------------------*/
 
 int main (void)
 {
@@ -306,56 +323,66 @@ int main (void)
         while (FROM_NEXT_ISHI);
 
         val = 0;
-        //cli (); 
-        _delay_ms (TIMING/2);
-        for (i = 0; i < 6; i++) {
+        _delay_us (TIMING/2);
+        for (i = 0; i < 6; i++)
+        {
             if (FROM_NEXT_ISHI)
                 val |= ((uint32_t)1 << i); 
-            _delay_ms (TIMING);
+            _delay_us (TIMING);
         }   
 
-        switch (val) {
+        switch (val)
+        {
             case 0x00000020: /* KB QUERY */
             case 0x00000022: /* MOUSE QUERY */
-                for (i = 6; i < 9; i++) {
+                for (i = 6; i < 9; i++)
+                {
                     if (FROM_NEXT_ISHI)
                         val |= ((uint32_t)1 << i); 
-                    _delay_ms (TIMING);
+                    _delay_us (TIMING);
                 }   
                 break;
             case 0x0000001E: /* KB RESET */
             case 0x00000000: /* LED CMD */
             default:
-                for (i = 6; i < 22; i++) {
+                for (i = 6; i < 22; i++)
+                {
                     if (FROM_NEXT_ISHI)
                         val |= ((uint32_t)1 << i);
-                    _delay_ms (TIMING);
+                    _delay_us (TIMING);
                 }
                 break;
         }
-        //sei ();
 
-        if (val == 0x00000020) {
+        if (val == 0x00000020)
+        {
             uint32_t resp = 0x00300600;
             uint8_t ps2_scancode = get_scan_code ();
 
             /* send kb response */
-            if (ps2_scancode && (ps2_scancode < 0x83)) {
+            if (ps2_scancode && (ps2_scancode < 0x83))
+            {
                 resp = 2*ps2_next_scancodes[ps2_scancode];
                 resp |= 0x00280400;
                 LED_ON;
-            } else if (ps2_scancode == 0xE0) {
+            }
+            else if (ps2_scancode == 0xE0)
+            {
                 /* multi-byte scancode */
                 ps2_scancode = get_scan_code ();
 
-                if (ps2_scancode == 0xF0) {
+                if (ps2_scancode == 0xF0)
+                {
                     ps2_scancode = get_scan_code ();
                     resp = 0x00280500;
-                } else
+                }
+                else
                     resp = 0x00280400;
                 resp |= 2*get_special_scancode (ps2_scancode);
                 LED_ON;
-            } else if (ps2_scancode == 0xF0) {
+            }
+            else if (ps2_scancode == 0xF0)
+            {
                 /* key up scancdoe */
                 ps2_scancode = get_scan_code ();
 
@@ -363,15 +390,17 @@ int main (void)
                 resp |= 0x00280500;
                 LED_ON;
             }
-            _delay_ms (TIMING*4.5);
-            send_response (resp & 0x000000FF, (resp & 0x0000FF00)>>8, (resp & 0x00FF0000)>>16);
-        } else if (val == 0x00000022) {
-            /* TODO: if PS2 mouse available send data */
-            uint32_t resp = 0x00300600;
-            _delay_ms (TIMING*4.5);
+            _delay_us (TIMING*4.5);
             send_response (resp & 0x000000FF, (resp & 0x0000FF00)>>8, (resp & 0x00FF0000)>>16);
         }
-        _delay_ms (TIMING*4);
+        else if (val == 0x00000022)
+        {
+            /* TODO: if PS2 mouse available send data */
+            uint32_t resp = 0x00300600;
+            _delay_us (TIMING*4.5);
+            send_response (resp & 0x000000FF, (resp & 0x0000FF00)>>8, (resp & 0x00FF0000)>>16);
+        }
+        _delay_us (TIMING*4);
     }
 
     return 0;
