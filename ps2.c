@@ -251,9 +251,12 @@ get_special_scancode (uint8_t ps2_scancode)
 /*----------------------------------------------------------------------------*/
 
     static inline void
-send_response (uint8_t resp_lo, uint8_t resp_mid, uint8_t resp_hi)
+send_response (
+    register uint8_t resp_lo, 
+    register uint8_t resp_mid, 
+    register uint8_t resp_hi)
 {
-    uint8_t i = 0;
+    register uint8_t i = 0;
 
     for (i = 0; i < 8; i++)
     {
@@ -400,7 +403,7 @@ int main (void)
             _delay_us (TIMING*4.5);
             send_response (resp & 0x000000FF, (resp & 0x0000FF00)>>8, (resp & 0x00FF0000)>>16);
         }
-        _delay_us (TIMING*4);
+        _delay_us (TIMING);
     }
 
     return 0;
