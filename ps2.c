@@ -176,6 +176,63 @@ static inline uint8_t get_scan_code (void)
     return c;
 }
 
+static inline uint8_t get_special_scancode (uint8_t ps2_scancode)
+{
+    switch (ps2_scancode)
+    {
+        case 0x11:
+            return 0x51;
+            break;
+        case 0x14:
+            return 0x00;
+            break;
+        case 0x1F:
+            return 0x54;
+            break;
+        case 0x27:
+            return 0x53;
+            break;
+        case 0x4A:
+            return 0x28;
+            break;
+        case 0x69:
+            return 0x00;
+            break;
+        case 0x6B:
+            return 0x09;
+            break;
+        case 0x6C:
+            return 0x7E;
+            break;
+        case 0x70:
+            return 0x00;
+            break;
+        case 0x71:
+            return 0x00;
+            break;
+        case 0x72:
+            return 0x0F;
+            break;
+        case 0x74:
+            return 0x10;
+            break;
+        case 0x75:
+            return 0x16;
+            break;
+        case 0x7A:
+            return 0x01;
+            break;
+        case 0x7D:
+            return 0x19;
+            break;
+
+        default:
+            break;
+    }
+
+    return 0x00;
+}
+
 static inline void send_response (uint8_t resp_lo, uint8_t resp_hi, uint8_t resp_hihi)
 {
     uint8_t i = 0;
@@ -242,7 +299,7 @@ int main (void)
 
     while (1)
     {
-        uint32_t val, preval=0;
+        uint32_t val;
         uint8_t i;
 
         LED_OFF;
@@ -296,7 +353,7 @@ int main (void)
                     resp = 0x00280500;
                 } else
                     resp = 0x00280400;
-                resp |= 2*ps2_next_scancodes[ps2_scancode];
+                resp |= 2*get_special_scancode (ps2_scancode);
                 LED_ON;
             } else if (ps2_scancode == 0xF0) {
                 /* key up scancdoe */
