@@ -287,8 +287,44 @@ send_response (
 
 /*----------------------------------------------------------------------------*/
 
+    static inline uint32_t
+get_modifier (uint8_t code, uint8_t right)
+{
+    uint32_t mod = 0;
+
+    switch (code)
+    {
+        case 0x12: /* L SHIFT */
+            mod = 0x00002000;
+            break;
+        case 0x59: /* R SHIFT */
+            mod = 0x00004000;
+            break;
+        case 0x14: /* CTRL */
+            if (right)
+                mod = 0x00010000; 
+            else
+                mod = 0x00008000;
+            break;
+        case 0x11: /* ALT */
+            if (right)
+                mod = 0x00020000; 
+            else
+                mod = 0x00040000;
+            break;
+        default:
+            mod = 0x00000000;
+            break;
+    }
+
+    return mod;
+}
+
+/*----------------------------------------------------------------------------*/
+
 int main (void)
 {
+    uint32_t modifiers = 0x00000000;
     CPU_PRESCALE (0);
     LED_CONFIG;
     LED_OFF;
@@ -359,45 +395,87 @@ int main (void)
 
         if (val == 0x00000020)
         {
+            uint32_t mod  = 0;
             uint32_t resp = 0x00300600;
             uint8_t ps2_scancode = get_scan_code ();
 
             /* send kb response */
             if (ps2_scancode && (ps2_scancode < 0x83))
             {
-                resp = 2*ps2_next_scancodes[ps2_scancode];
-                resp |= 0x00280400;
-                LED_ON;
+                if ((mod = get_modifier (ps2_scancode, 0)))
+                {
+                    modifiers |= mod;
+                    resp = 0x00300600;
+                    goto send_response;
+                }
+                resp = 0x00280400;
             }
             else if (ps2_scancode == 0xE0)
             {
                 /* multi-byte scancode */
                 ps2_scancode = get_scan_code ();
 
-                if (ps2_scancode == 0xF0)
+                if (0 == ps2_scancode)
+                {
+                    tail--;
+                    resp = 0x00300600;
+                    goto send_response;
+                }
+                else if (ps2_scancode == 0xF0)
                 {
                     ps2_scancode = get_scan_code ();
+                    if (0 == ps2_scancode)
+                    {
+                        tail -= 2;
+                        resp = 0x00300600;
+                        goto send_response;
+                    }
+
+                    if ((mod = get_modifier (ps2_scancode, 1)))
+                    {
+                        modifiers &= ~mod;
+                        resp = 0x00300600;
+                        goto send_response;
+                    }
                     resp = 0x00280500;
                 }
                 else
+                {
+                    if ((mod = get_modifier (ps2_scancode, 1)))
+                    {
+                        modifiers |= mod;
+                        resp = 0x00300600;
+                        goto send_response;
+                    }
                     resp = 0x00280400;
-                resp |= 2*get_special_scancode (ps2_scancode);
-                LED_ON;
+                }
             }
             else if (ps2_scancode == 0xF0)
             {
                 /* key up scancdoe */
                 ps2_scancode = get_scan_code ();
 
-                if (ps2_scancode == 0)
+                if (0 == ps2_scancode)
                 {
                     tail--; /* put the code back */
                     resp = 0x00300600;
                     goto send_response;
                 }
 
-                resp = 2*ps2_next_scancodes[ps2_scancode];
-                resp |= 0x00280500;
+                if ((mod = get_modifier (ps2_scancode, 0)))
+                {
+                    modifiers &= ~mod;
+                    resp = 0x00300600;
+                    goto send_response;
+                }
+
+                resp = 0x00280500;
+            }
+
+            if (0x00300600 != resp)
+            {
+                resp |= 2*ps2_next_scancodes[ps2_scancode];
+                resp |= modifiers;
                 LED_ON;
             }
 
